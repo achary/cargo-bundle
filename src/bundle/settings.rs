@@ -94,6 +94,7 @@ struct PackageSettings {
     description: String,
     homepage: Option<String>,
     authors: Option<Vec<String>>,
+    license: Option<String>,
     metadata: Option<MetadataSettings>,
 }
 
@@ -388,6 +389,10 @@ impl Settings {
     pub fn osx_minimum_system_version(&self) -> Option<&str> {
         self.bundle_settings.osx_minimum_system_version.as_ref().map(String::as_str)
     }
+
+    pub fn license(&self) -> Option<&str> {
+        self.package.license.as_ref().map(String::as_str)
+    }
 }
 
 fn bundle_settings_from_table(opt_map: &Option<HashMap<String, BundleSettings>>,
@@ -506,6 +511,7 @@ mod tests {
         assert_eq!(package.description, "An example application.");
         assert_eq!(package.homepage, None);
         assert_eq!(package.authors, Some(vec!["Jane Doe".to_string()]));
+        assert_eq!(package.license, Some("MIT".to_string()));
         assert!(package.metadata.is_some());
         let metadata = package.metadata.as_ref().unwrap();
         assert!(metadata.bundle.is_some());

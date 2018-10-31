@@ -74,6 +74,9 @@ pub fn bundle_project(settings: &Settings) -> ::Result<Vec<PathBuf>> {
     generate_control_file(settings, arch, &control_dir, &data_dir).chain_err(|| {
         "Failed to create control file"
     })?;
+    generate_copyright_file(settings, &data_dir).chain_err(|| {
+        "Failed to create copyright file"
+    })?;
     generate_md5sums(&control_dir, &data_dir).chain_err(|| {
         "Failed to create md5sums file"
     })?;
@@ -153,7 +156,15 @@ fn generate_control_file(settings: &Settings, arch: &str, control_dir: &Path, da
         long_description = "(none)";
     }
     writeln!(&mut file, "Description: {}", short_description)?;
-    for line in long_description.lines() {
+    write_multiline(&mut file, long_description) ?;
+
+    file.flush()?;
+    Ok(())
+}
+
+fn write_multiline(f: &mut std::io::BufWriter<std::fs::File>, text: &str) -> ::Result<()> {
+    let mut file = f;
+    for line in text.lines() {
         let line = line.trim();
         if line.is_empty() {
             writeln!(&mut file, " .")?;
@@ -161,10 +172,34 @@ fn generate_control_file(settings: &Settings, arch: &str, control_dir: &Path, da
             writeln!(&mut file, " {}", line)?;
         }
     }
-    file.flush()?;
     Ok(())
 }
 
+fn generate_copyright_file(settings: &Settings, data_dir: &Path) -> ::Result<()> {
+    // For more information about the format of this file, see
+    // https://www.debian.org/doc/manuals/maint-guide/dreq.en.html#copyright
+    let bundle_name = settings.bundle_name();
+    let dest_path = data_dir.join(format!("usr/share/doc/{}/copyright",bundle_name));
+    let mut file = common::create_file(&dest_path)?;
+    writeln!(&mut file, "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/");
+    writeln!(&mut file, "Upstream-Name: {}", bundle_name);
+    if settings.author_names().len() > 0 {
+        writeln!(&mut file, "Upstream-Contact: {}", settings.author_names()[0]);
+    }
+    if !settings.homepage_url().is_empty() {
+        writeln!(&mut file, "Source: {}", settings.homepage_url());
+    }
+    if let Some(copyright) = settings.copyright_string() {
+        writeln!(&mut file, "Copyright: {}", copyright);
+    }
+    writeln!(&mut file, "");
+    writeln!(&mut file, "Files: *");
+    if let Some(lic) = settings.license() {
+        writeln!(&mut file, "License: {}", lic);
+    }
+    file.flush()?;
+    Ok(())
+}
 /// Create an `md5sums` file in the `control_dir` containing the MD5 checksums
 /// for each file within the `data_dir`.
 fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> ::Result<()> {
